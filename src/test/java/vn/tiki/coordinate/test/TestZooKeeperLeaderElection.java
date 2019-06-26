@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.Before;
 import org.junit.Test;
 
 import io.gridgo.bean.BObject;
@@ -26,7 +27,12 @@ public class TestZooKeeperLeaderElection {
 
     private static final String DEFAULT_ZOOKEEPER = "localhost:2181";
 
-    private static final ZooKeeper zooKeeper = ZooKeeperHelper.initZooKeeper(DEFAULT_ZOOKEEPER, 10000, 30000);
+    private ZooKeeper zooKeeper;
+
+    @Before
+    public void initZooKeeper() {
+        zooKeeper = ZooKeeperHelper.initZooKeeper(DEFAULT_ZOOKEEPER, 10000, 30000);
+    }
 
     @Test
     public void testSingle() throws Exception {
@@ -233,6 +239,8 @@ public class TestZooKeeperLeaderElection {
             keepBusySpin1.set(false);
             keepBusySpin2.set(false);
             keepBusySpin3.set(false);
+
+            ThreadUtils.sleep(100);
 
             threadRef1.get().interrupt();
             threadRef2.get().interrupt();
