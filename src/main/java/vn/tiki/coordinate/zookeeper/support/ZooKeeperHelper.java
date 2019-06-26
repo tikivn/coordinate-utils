@@ -28,23 +28,23 @@ public class ZooKeeperHelper {
         }, "zookeeper-instances-shutdown"));
     }
 
-    public static ZooKeeper initZooKeeper(String connnection, int sessionTimeoutMillis, long connectTimeoutMillis)
-            throws Exception {
+    public static ZooKeeper initZooKeeper(String connnection, int sessionTimeoutMillis, long connectTimeoutMillis) {
+        try {
+            final CountDownLatch connectedSignal = new CountDownLatch(1);
+            final ZooKeeper zooKeeper = new ZooKeeper(connnection, sessionTimeoutMillis, event -> {
+                if (KeeperState.SyncConnected.equals(event.getState())) {
+                    connectedSignal.countDown();
+                }
+            });
 
-        final CountDownLatch connectedSignal = new CountDownLatch(1);
-
-        final ZooKeeper zooKeeper = new ZooKeeper(connnection, sessionTimeoutMillis, event -> {
-            if (KeeperState.SyncConnected.equals(event.getState())) {
-                connectedSignal.countDown();
+            if (!connectedSignal.await(connectTimeoutMillis, TimeUnit.MILLISECONDS)) {
+                zooKeeper.close();
+                throw new TimeoutException("ZooKeeper connecting timeout after " + connectTimeoutMillis + "ms");
             }
-        });
-
-        if (!connectedSignal.await(connectTimeoutMillis, TimeUnit.MILLISECONDS)) {
-            zooKeeper.close();
-            throw new TimeoutException("ZooKeeper connecting timeout after " + connectTimeoutMillis + "ms");
+            TRACKED_ZOOKEEPER_INSTANCES.add(zooKeeper);
+            return zooKeeper;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-
-        TRACKED_ZOOKEEPER_INSTANCES.add(zooKeeper);
-        return zooKeeper;
     }
 }

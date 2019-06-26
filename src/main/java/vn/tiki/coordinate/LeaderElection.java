@@ -8,5 +8,7 @@ public interface LeaderElection {
 
     void nominateCandidate(Member member);
 
-    LeadershipListeningDisposable addLeadershipEvent(LeadershipListener listener);
+    void cancelCandidate();
+
+    LeadershipListeningDisposable addLeadershipListener(LeadershipListener listener);
 }

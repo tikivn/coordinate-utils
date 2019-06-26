@@ -22,7 +22,7 @@ public abstract class AbstractLeaderElection implements LeaderElection {
     private final Map<Integer, LeadershipListener> listeners = new NonBlockingHashMap<>();
 
     @Override
-    public final LeadershipListeningDisposable addLeadershipEvent(@NonNull LeadershipListener listener) {
+    public final LeadershipListeningDisposable addLeadershipListener(@NonNull LeadershipListener listener) {
         final int id = LISTENING_ID_SEED.getAndIncrement();
         this.listeners.put(id, listener);
         return () -> {

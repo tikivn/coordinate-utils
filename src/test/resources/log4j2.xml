@@ -30,5 +30,6 @@
 		</Root>
 		<Logger name="org.reflections" level="off" />
 		<Logger name="vn.tiki" level="debug"/>
+		<Logger name="org.apache.zookeeper" level="warn"/>
 	</Loggers>
 </Configuration>

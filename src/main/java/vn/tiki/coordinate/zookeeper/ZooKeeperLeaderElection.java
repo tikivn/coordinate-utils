@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
@@ -33,7 +34,7 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
     public ZooKeeperLeaderElection(ZooKeeper zooKeeper, String rootNodePath) {
         this.zooKeeper = zooKeeper;
         this.rootNodePath = rootNodePath;
-        
+
         this.init();
     }
 
@@ -113,8 +114,12 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
                 }
                 updateLeader();
             }
-        } catch (KeeperException | InterruptedException e) {
+        } catch (InterruptedException e) {
             throw new LeaderElectionException(e);
+        } catch (KeeperException e) {
+            if (e.code() != Code.SESSIONEXPIRED) {
+                throw new LeaderElectionException(e);
+            }
         }
     }
 
@@ -142,5 +147,17 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
         }
         this.path = createNode(rootNodePath + "/" + PREFIX, false, true, member.toBytes());
         return path != null;
+    }
+
+    @Override
+    public synchronized void cancelCandidate() {
+        if (this.path != null) {
+            try {
+                this.zooKeeper.delete(this.path, 0);
+                this.path = null;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }
