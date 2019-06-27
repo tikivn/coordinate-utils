@@ -28,10 +28,10 @@ public class ZooKeeperHelper {
         }, "zookeeper-instances-shutdown"));
     }
 
-    public static ZooKeeper initZooKeeper(String connnection, int sessionTimeoutMillis, long connectTimeoutMillis) {
+    public static ZooKeeper initZooKeeper(String connectString, int sessionTimeoutMillis, long connectTimeoutMillis) {
         try {
             final CountDownLatch connectedSignal = new CountDownLatch(1);
-            final ZooKeeper zooKeeper = new ZooKeeper(connnection, sessionTimeoutMillis, event -> {
+            final ZooKeeper zooKeeper = new ZooKeeper(connectString, sessionTimeoutMillis, event -> {
                 if (KeeperState.SyncConnected.equals(event.getState())) {
                     connectedSignal.countDown();
                 }
