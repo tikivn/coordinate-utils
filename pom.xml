@@ -15,6 +15,7 @@
 		<log4j2.version>2.11.1</log4j2.version>
 
 		<zookeeper.version>3.5.5</zookeeper.version>
+		<jetcd.version>0.3.0</jetcd.version>
 		<gridgo.bean.version>0.6.0</gridgo.bean.version>
 	</properties>
 
@@ -80,6 +81,13 @@
 				<groupId>org.apache.zookeeper</groupId>
 				<artifactId>zookeeper</artifactId>
 				<version>${zookeeper.version}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.etcd</groupId>
+				<artifactId>jetcd-core</artifactId>
+				<version>${jetcd.version}</version>
+				<scope>provided</scope>
 			</dependency>
 			<dependency>
 				<groupId>io.gridgo</groupId>
