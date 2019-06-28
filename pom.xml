@@ -13,9 +13,9 @@
 		<junit.version>4.12</junit.version>
 		<lombok.version>1.18.8</lombok.version>
 		<log4j2.version>2.11.1</log4j2.version>
-
 		<zookeeper.version>3.5.5</zookeeper.version>
 		<gridgo.bean.version>0.6.0</gridgo.bean.version>
+		<mockito.core.version>2.28.2</mockito.core.version>
 	</properties>
 
 	<build>
@@ -92,6 +92,12 @@
 				<version>${junit.version}</version>
 				<scope>test</scope>
 			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-core</artifactId>
+				<version>${mockito.core.version}</version>
+				<scope>test</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -123,6 +129,10 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
 		</dependency>
 	</dependencies>
 

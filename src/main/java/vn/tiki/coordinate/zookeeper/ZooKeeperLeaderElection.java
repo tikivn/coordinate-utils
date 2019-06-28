@@ -60,7 +60,7 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
                 }
                 break;
             } catch (InterruptedException e) {
-                throw new RuntimeException("Interupted", e);
+                throw new RuntimeException("Interrupted", e);
             } catch (KeeperException e) {
                 if (tryCountdown == 0) {
                     throw new RuntimeException("Cannot create node: " + node + ", ephemeral: " + ephemeral, e);
