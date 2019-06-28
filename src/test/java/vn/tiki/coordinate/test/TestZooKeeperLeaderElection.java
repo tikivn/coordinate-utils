@@ -34,31 +34,6 @@ public class TestZooKeeperLeaderElection {
         zooKeeper = ZooKeeperHelper.initZooKeeper(DEFAULT_ZOOKEEPER, 10000, 30000);
     }
 
-    @Test
-    public void testSingle() throws Exception {
-        log.info("test single candidate");
-        LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, "/test-single");
-
-        final AtomicReference<BObject> ref = new AtomicReference<>();
-
-        final CountDownLatch doneSignal = new CountDownLatch(1);
-        leaderElection.addLeadershipListener(event -> {
-            ref.set(event.getLeader().getData());
-            doneSignal.countDown();
-        });
-
-        BObject candidateData = BObject.ofSequence("key", "value1");
-
-        leaderElection.nominateCandidate(Member.newBuilder() //
-                .id("member1")//
-                .data(candidateData) //
-                .build());
-
-        doneSignal.await(5, TimeUnit.SECONDS);
-        assertEquals(candidateData, ref.get());
-        ThreadUtils.sleep(200);
-    }
-
     private Thread createLeaderElectionThread(@NonNull String rootPath, @NonNull String memberName,
             @NonNull CountDownLatch startSignal, @NonNull LeadershipListener onLeadershipEventListener) {
         final Thread thread = new Thread(() -> {
