@@ -25,7 +25,7 @@ import vn.tiki.coordinate.zookeeper.support.ZooKeeperHelper;
 @Slf4j
 public class TestZooKeeperLeaderElection {
 
-    private static final String DEFAULT_ZOOKEEPER = "localhost:2181";
+    public static final String DEFAULT_ZOOKEEPER = "localhost:2181";
 
     private ZooKeeper zooKeeper;
 
