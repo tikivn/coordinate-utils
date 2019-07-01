@@ -3,6 +3,7 @@ package vn.tiki.coordinate.zookeeper;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.Getter;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -25,10 +26,12 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
     private final ZooKeeper zooKeeper;
     private final String rootNodePath;
 
+    @Getter
     private String path;
 
     private String watchedNodePath;
 
+    @Getter
     private String leaderPath;
 
     public ZooKeeperLeaderElection(ZooKeeper zooKeeper, String rootNodePath) {
@@ -114,13 +117,6 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
         int index = childNodePaths.indexOf(nodeName);
         if (index == 0) {
             this.setLeaderAndTriggerEvent(this.getCandidate());
-        } else {
-            // If I'm not leader, try to watch on previous node
-            final String tobeWatchedNodePath = this.rootNodePath + "/" + childNodePaths.get(index - 1);
-            if (this.watchedNodePath == null || !tobeWatchedNodePath.equals(this.watchedNodePath)) {
-                watchedNodePath = tobeWatchedNodePath;
-                zooKeeper.exists(watchedNodePath, true);
-            }
         }
     }
 

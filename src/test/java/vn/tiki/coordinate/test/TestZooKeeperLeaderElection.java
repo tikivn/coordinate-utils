@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,6 +33,11 @@ public class TestZooKeeperLeaderElection {
     @Before
     public void initZooKeeper() {
         zooKeeper = ZooKeeperHelper.initZooKeeper(DEFAULT_ZOOKEEPER, 10000, 30000);
+    }
+
+    @After public void tearDown() throws InterruptedException {
+        if (zooKeeper != null)
+            zooKeeper.close();
     }
 
     private Thread createLeaderElectionThread(@NonNull String rootPath, @NonNull String memberName,
