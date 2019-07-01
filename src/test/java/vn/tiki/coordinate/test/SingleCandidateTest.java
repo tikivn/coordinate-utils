@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static vn.tiki.coordinate.test.TestZooKeeperLeaderElection.DEFAULT_ZOOKEEPER;
 
 @Slf4j
@@ -41,7 +42,7 @@ public class SingleCandidateTest {
     }
 
     @Test
-    public void testSingle_forVerifyLeaderAndData() throws Exception {
+    public void test_GetAndVerifyLeaderAndLeaderData() throws Exception {
         log.info("test single candidate for leader, and data of leader");
         LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, "/test-single");
 
@@ -64,10 +65,9 @@ public class SingleCandidateTest {
         doneSignal.await(5, TimeUnit.SECONDS);
         assertEquals(candidateData, ref.get());
         assertEquals(candidate, leaderElection.getLeader());
-        ThreadUtils.sleep(2000);
     }
 
-    @Test public void testSingle_Leader_Data_Change_For_Zookeeper() throws Exception {
+    @Test public void test_Update_Data_Of_Leader_From_Current_Leader() throws Exception {
         log.info("test single candidate for leader data changed");
         ZooKeeperLeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, "/test-single");
 
@@ -93,18 +93,17 @@ public class SingleCandidateTest {
                 .data(candidateData) //
                 .build();
         leaderElection.nominateCandidate(candidate);
-
         doneSignal.await(5, TimeUnit.SECONDS);
 
-        BObject newCandidateData = BObject.ofSequence("key1", "value");
+        System.out.println("leader --> " + leaderElection.getLeader().getId());
+
+        BObject newCandidateData = BObject.ofSequence("newkey", "new1");
         // Change the data of leader node
         changeData(leaderElection, newCandidateData );
-
+        Thread.sleep(300);
         dataSignal.await(5, TimeUnit.SECONDS);
-        ThreadUtils.sleep(200);
-        assertEquals(newCandidateData, ref.get());
         assertEquals(candidate, leaderElection.getLeader());
-        ThreadUtils.sleep(200);
+        assertNotEquals(newCandidateData, ref.get());
     }
 
     private void changeData(ZooKeeperLeaderElection leaderElection, BObject newCandidateData) throws KeeperException, InterruptedException {
@@ -116,7 +115,12 @@ public class SingleCandidateTest {
                 .id("member1")//
                 .data(newCandidateData) //
                 .build();
-
         zooKeeper.setData(leaderPath  , candidate.toBytes(), 0);
+
+        byte[] bytes = this.zooKeeper.getData(leaderPath, true, null);
+        Member member = Member.fromBytes(bytes);
+        System.out.println("data --> " + member.getData());
     }
+
+
 }

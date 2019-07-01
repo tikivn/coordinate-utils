@@ -29,8 +29,6 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
     @Getter
     private String path;
 
-    private String watchedNodePath;
-
     @Getter
     private String leaderPath;
 
@@ -102,7 +100,9 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
         } catch (InterruptedException e) {
             throw new LeaderElectionException(e);
         } catch (KeeperException e) {
-            if (e.code() != Code.SESSIONEXPIRED) {
+            if (e.code() == Code.CONNECTIONLOSS) {
+                // Do nothing in this case!
+            } else if (e.code() != Code.SESSIONEXPIRED) {
                 throw new LeaderElectionException(e);
             }
         }
