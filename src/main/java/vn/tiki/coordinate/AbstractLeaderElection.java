@@ -16,7 +16,7 @@ public abstract class AbstractLeaderElection implements LeaderElection {
     private Member candidate;
 
     @Getter
-    private Member leader;
+    Member leader;
 
     private final AtomicInteger LISTENING_ID_SEED = new AtomicInteger(0);
     private final Map<Integer, LeadershipListener> listeners = new NonBlockingHashMap<>();

@@ -7,6 +7,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import vn.tiki.coordinate.LeaderElection;
+import vn.tiki.coordinate.LeadershipListeningDisposable;
 import vn.tiki.coordinate.Member;
 import vn.tiki.coordinate.zookeeper.ZooKeeperLeaderElection;
 import vn.tiki.coordinate.zookeeper.support.ZooKeeperHelper;
@@ -35,7 +36,6 @@ public class MultiCandidateChangeLeaderTest {
         }
         if (zooKeeper2 != null) {
             zooKeeper2.close();
-            Thread.sleep(300);
         }
     }
 
@@ -44,7 +44,7 @@ public class MultiCandidateChangeLeaderTest {
         String rootNodePath  = "/test-multi";
         LeaderElection leaderElection1 = new ZooKeeperLeaderElection(zooKeeper1, rootNodePath);
         final CountDownLatch doneSignal1 = new CountDownLatch(1);
-        leaderElection1.addLeadershipListener(event -> {
+        LeadershipListeningDisposable leadershipListeningDisposable = leaderElection1.addLeadershipListener(event -> {
             //ref.set(event.getLeader().getData());
             System.out.println("Leader for 1: " + event.getLeader().getId());
             doneSignal1.countDown();
@@ -66,6 +66,8 @@ public class MultiCandidateChangeLeaderTest {
         assertEquals(member1, leaderElection2.getLeader());
         zooKeeper1.close();
         zooKeeper1 = null;
+        leadershipListeningDisposable.dispose();
+
         doneSignal1.await(5, TimeUnit.SECONDS);
         assertEquals(member2, leaderElection2.getLeader());
 
