@@ -96,6 +96,7 @@ public class SingleCandidateTest {
         doneSignal.await(5, TimeUnit.SECONDS);
 
         System.out.println("leader --> " + leaderElection.getLeader().getId());
+        System.out.println("Candidate path: " + leaderElection.getPath());
 
         BObject newCandidateData = BObject.ofSequence("newkey", "new1");
         // Change the data of leader node

@@ -35,11 +35,12 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
     public ZooKeeperLeaderElection(ZooKeeper zooKeeper, String rootNodePath) {
         this.zooKeeper = zooKeeper;
         this.rootNodePath = rootNodePath;
-
-        this.init();
+        if (this.zooKeeper != null) {
+            this.init();
+        }
     }
 
-    private void init() {
+    void init() {
         String rootPath = this.createNode(this.rootNodePath, false, false, null); // create root node
         if (rootPath == null) {
             throw new LeaderElectionException("Cannot get/create root path");
