@@ -16,7 +16,7 @@ public abstract class AbstractLeaderElection implements LeaderElection {
     private Member candidate;
 
     @Getter
-    private Member leader;
+    Member leader;
 
     private final AtomicInteger LISTENING_ID_SEED = new AtomicInteger(0);
     private final Map<Integer, LeadershipListener> listeners = new NonBlockingHashMap<>();
@@ -37,25 +37,31 @@ public abstract class AbstractLeaderElection implements LeaderElection {
         }
     }
 
-    protected void setLeader(Member theLeader) {
+    protected void setLeaderAndTriggerEvent(Member theLeader) {
         Member oldLeader = this.leader;
         this.leader = theLeader;
-        if ((oldLeader == null && theLeader != null) //
-                || oldLeader != null && (theLeader == null || !oldLeader.equals(theLeader))) {
-
+        if (isLeaderChanged(oldLeader, theLeader)) {
             this.triggerLeadershipEvent(LeadershipEvent.builder() //
                     .type(LeadershipEventType.LEADER_CHANGE) //
                     .oldLeader(oldLeader) //
                     .leader(theLeader) //
                     .build());
-        } else if (oldLeader != null && oldLeader.equals(theLeader)
-                && !oldLeader.getData().equals(theLeader.getData())) {
-
+        } else if (isLeaderDataChanged(oldLeader, theLeader)) {
             this.triggerLeadershipEvent(LeadershipEvent.builder() //
                     .type(LeadershipEventType.LEADER_DATA_CHANGE) //
                     .leader(theLeader) //
                     .build());
         }
+    }
+
+    private boolean isLeaderChanged(Member oldLeader, Member theLeader) {
+        return (oldLeader == null && theLeader != null) //
+                || oldLeader != null && (theLeader == null || !oldLeader.equals(theLeader));
+    }
+
+    private boolean isLeaderDataChanged(Member oldLeader, Member theLeader) {
+        return oldLeader != null && oldLeader.equals(theLeader)
+                && !oldLeader.getData().equals(theLeader.getData());
     }
 
     @Override

@@ -3,6 +3,7 @@ package vn.tiki.coordinate.zookeeper;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.Getter;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -25,20 +26,21 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
     private final ZooKeeper zooKeeper;
     private final String rootNodePath;
 
+    @Getter
     private String path;
 
-    private String watchedNodePath;
-
+    @Getter
     private String leaderPath;
 
     public ZooKeeperLeaderElection(ZooKeeper zooKeeper, String rootNodePath) {
         this.zooKeeper = zooKeeper;
         this.rootNodePath = rootNodePath;
-
-        this.init();
+        if (this.zooKeeper != null) {
+            this.init();
+        }
     }
 
-    public void init() {
+    void init() {
         String rootPath = this.createNode(this.rootNodePath, false, false, null); // create root node
         if (rootPath == null) {
             throw new LeaderElectionException("Cannot get/create root path");
@@ -46,7 +48,8 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
         this.refresh();
     }
 
-    private String createNode(final String node, final boolean watch, final boolean ephemeral, byte[] data) {
+    // Verify node existing, then return, or not create new node and return the NodePath
+    String createNode(final String node, final boolean watch, final boolean ephemeral, byte[] data) {
         String createdNodePath = null;
         int tryCountdown = 10;
         while (tryCountdown-- > 0) {
@@ -60,7 +63,7 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
                 }
                 break;
             } catch (InterruptedException e) {
-                throw new RuntimeException("Interupted", e);
+                throw new RuntimeException("Interrupted", e);
             } catch (KeeperException e) {
                 if (tryCountdown == 0) {
                     throw new RuntimeException("Cannot create node: " + node + ", ephemeral: " + ephemeral, e);
@@ -76,73 +79,89 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
         return createdNodePath;
     }
 
+    // Function for received refresh event
     private void refresh() {
         try {
+            // Register the watcher for the next (or first) time.
             List<String> childNodePaths = zooKeeper.getChildren(this.rootNodePath, event -> {
                 refresh();
             });
-
             Collections.sort(childNodePaths);
 
-            if (this.path != null) {
-                String nodeName = path.substring(path.lastIndexOf('/') + 1);
-                int index = childNodePaths.indexOf(nodeName);
-                if (index == 0) {
-                    this.setLeader(this.getCandidate());
-                } else {
-                    // If I'm not leader, try to watch on previous node
-                    final String tobeWatchedNodePath = this.rootNodePath + "/" + childNodePaths.get(index - 1);
-                    if (this.watchedNodePath == null || !tobeWatchedNodePath.equals(this.watchedNodePath)) {
-                        watchedNodePath = tobeWatchedNodePath;
-                        zooKeeper.exists(watchedNodePath, true);
-                    }
-                }
+            if (alreadyNominatedSuccess()) {
+                handleNominatedCase(childNodePaths);
             }
 
             String newLeaderPath = childNodePaths.size() == 0 ? null : this.rootNodePath + "/" + childNodePaths.get(0);
-            if (this.leaderPath == null || !this.leaderPath.equals(newLeaderPath)) {
+            if (needUpdateLeader(newLeaderPath)) {
                 this.leaderPath = newLeaderPath;
-                if (newLeaderPath != null) {
-                    if (this.getCandidate() != null && this.getLeader() != this.getCandidate()) {
-                        // if I'm not the leader, watch him for data change
-                        zooKeeper.exists(leaderPath, event -> {
-                            if (EventType.NodeDataChanged.equals(event.getType())) {
-                                updateLeader();
-                            }
-                        });
-                    }
-                }
-                updateLeader();
+                registerWatcherForLeaderDataChange();
+                buildAndUpdateLeaderThenTriggerEvent();
             }
         } catch (InterruptedException e) {
             throw new LeaderElectionException(e);
         } catch (KeeperException e) {
-            if (e.code() != Code.SESSIONEXPIRED) {
+            if (e.code() == Code.CONNECTIONLOSS) {
+                // Do nothing in this case!
+            } else if (e.code() != Code.SESSIONEXPIRED) {
                 throw new LeaderElectionException(e);
             }
         }
     }
 
-    private void updateLeader() {
-        Member newLeader;
-        if (leaderPath != null) {
-            byte[] bytes;
-            try {
-                bytes = this.zooKeeper.getData(leaderPath, true, null);
-                newLeader = Member.fromBytes(bytes);
-            } catch (KeeperException | InterruptedException e) {
-                log.error("Error while trying to get new leader info...", e);
-                return;
-            }
-        } else {
-            newLeader = null;
+    private boolean alreadyNominatedSuccess() {
+        return  this.path != null;
+    }
+
+    private void handleNominatedCase(List<String> childNodePaths) throws KeeperException, InterruptedException {
+        String nodeName = path.substring(path.lastIndexOf('/') + 1);
+        int index = childNodePaths.indexOf(nodeName);
+        if (index == 0) {
+            this.setLeaderAndTriggerEvent(this.getCandidate());
         }
-        this.setLeader(newLeader);
+    }
+
+    private boolean needUpdateLeader(String newLeaderPath) {
+        return this.leaderPath == null || !this.leaderPath.equals(newLeaderPath);
+    }
+
+    private void registerWatcherForLeaderDataChange() throws KeeperException, InterruptedException {
+        if (leaderPath != null) {
+            if (this.getCandidate() != null && !this.getCandidate().equals(this.getLeader())) {
+                // if I'm not the leader, watch him for data change
+                zooKeeper.exists(leaderPath, event -> {
+                    if (EventType.NodeDataChanged.equals(event.getType())) {
+                        buildAndUpdateLeaderThenTriggerEvent();
+                    }
+                });
+            }
+        }
+    }
+
+    private void buildAndUpdateLeaderThenTriggerEvent() {
+        Member newLeader;
+        try {
+            newLeader = buildMemberFromZookeeper(leaderPath);
+        } catch (KeeperException | InterruptedException e) {
+            log.error("Error while trying to get new leader info...", e);
+            return;
+        }
+
+        this.setLeaderAndTriggerEvent(newLeader);
+    }
+
+    private Member buildMemberFromZookeeper(String nodePath) throws KeeperException, InterruptedException {
+        Member member = null;
+        if (nodePath != null) {
+            byte[] bytes = this.zooKeeper.getData(nodePath, true, null);
+            member = Member.fromBytes(bytes);
+        }
+        return member;
     }
 
     @Override
     protected boolean tryNominateCandidate(@NonNull Member member) throws Exception {
-        if (this.path != null) {
+        if (alreadyNominatedSuccess()) {
             throw new LeaderElectionException("Local candidate already exist, cannot nominate other one");
         }
         this.path = createNode(rootNodePath + "/" + PREFIX, false, true, member.toBytes());
@@ -151,7 +170,7 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
 
     @Override
     public synchronized void cancelCandidate() {
-        if (this.path != null) {
+        if (alreadyNominatedSuccess()) {
             try {
                 this.zooKeeper.delete(this.path, 0);
                 this.path = null;
@@ -160,4 +179,6 @@ public class ZooKeeperLeaderElection extends AbstractLeaderElection {
             }
         }
     }
+
+
 }

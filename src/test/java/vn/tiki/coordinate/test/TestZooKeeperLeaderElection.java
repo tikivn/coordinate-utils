@@ -9,10 +9,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.zookeeper.ZooKeeper;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.gridgo.bean.BObject;
 import io.gridgo.utils.ThreadUtils;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import vn.tiki.coordinate.zookeeper.support.ZooKeeperHelper;
 @Slf4j
 public class TestZooKeeperLeaderElection {
 
-    private static final String DEFAULT_ZOOKEEPER = "localhost:2181";
+    public static final String DEFAULT_ZOOKEEPER = "localhost:2181";
 
     private ZooKeeper zooKeeper;
 
@@ -34,127 +34,9 @@ public class TestZooKeeperLeaderElection {
         zooKeeper = ZooKeeperHelper.initZooKeeper(DEFAULT_ZOOKEEPER, 10000, 30000);
     }
 
-    @Test
-    public void testSingle() throws Exception {
-        log.info("test single candidate");
-        LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, "/test-single");
-
-        final AtomicReference<BObject> ref = new AtomicReference<>();
-
-        final CountDownLatch doneSignal = new CountDownLatch(1);
-        leaderElection.addLeadershipListener(event -> {
-            ref.set(event.getLeader().getData());
-            doneSignal.countDown();
-        });
-
-        BObject candidateData = BObject.ofSequence("key", "value1");
-
-        leaderElection.nominateCandidate(Member.newBuilder() //
-                .id("member1")//
-                .data(candidateData) //
-                .build());
-
-        doneSignal.await(5, TimeUnit.SECONDS);
-        assertEquals(candidateData, ref.get());
-        ThreadUtils.sleep(200);
-    }
-
-    private Thread createLeaderElectionThread(@NonNull String rootPath, @NonNull String memberName,
-            @NonNull CountDownLatch startSignal, @NonNull LeadershipListener onLeadershipEventListener) {
-        final Thread thread = new Thread(() -> {
-            LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, rootPath);
-            leaderElection.addLeadershipListener(onLeadershipEventListener);
-
-            try {
-                startSignal.await();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
-            leaderElection.nominateCandidate(Member.newBuilder() //
-                    .id(memberName)//
-                    .build());
-
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    // do nothing...
-                }
-            }
-        });
-        thread.start();
-        return thread;
-    }
-
-    @Test
-    public void test2Members() throws Exception {
-        log.info("test 2 candidates");
-        final String rootPath = "/test-2-candidates";
-
-        final CountDownLatch startSignal = new CountDownLatch(1);
-        final CountDownLatch doneSignal = new CountDownLatch(2);
-
-        final AtomicReference<String> receivedLeader1 = new AtomicReference<>();
-        Thread thread1 = createLeaderElectionThread(rootPath, "member1", startSignal, event -> {
-            receivedLeader1.set(event.getLeader().getId());
-            doneSignal.countDown();
-        });
-
-        final AtomicReference<String> receivedLeader2 = new AtomicReference<>();
-        Thread thread2 = createLeaderElectionThread(rootPath, "member2", startSignal, event -> {
-            receivedLeader2.set(event.getLeader().getId());
-            doneSignal.countDown();
-        });
-
-        try {
-            startSignal.countDown();
-            doneSignal.await(15, TimeUnit.SECONDS);
-            assertEquals(0, doneSignal.getCount());
-            assertEquals(receivedLeader1.get(), receivedLeader2.get());
-        } finally {
-            thread1.interrupt();
-            thread2.interrupt();
-        }
-        ThreadUtils.sleep(200);
-    }
-
-    private Thread createLeaderElectionThreadAndWaitForInterupt(@NonNull String rootPath, @NonNull String memberName,
-            @NonNull CountDownLatch startSignal, @NonNull AtomicBoolean keepBusySpin,
-            @NonNull LeadershipListener onLeadershipEventListener) {
-        final Thread thread = new Thread(() -> {
-            LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, rootPath);
-            leaderElection.addLeadershipListener(onLeadershipEventListener);
-
-            try {
-                startSignal.await();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
-            leaderElection.nominateCandidate(Member.newBuilder() //
-                    .id(memberName)//
-                    .build());
-
-            while (keepBusySpin.get()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    // do nothing...
-                }
-            }
-            leaderElection.cancelCandidate();
-
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    // do nothing...
-                }
-            }
-        });
-        thread.start();
-        return thread;
+    @After public void tearDown() throws InterruptedException {
+        if (zooKeeper != null)
+            zooKeeper.close();
     }
 
     @Test
@@ -169,7 +51,7 @@ public class TestZooKeeperLeaderElection {
         final AtomicReference<Thread> threadRef1 = new AtomicReference<>();
         final AtomicReference<String> receivedLeader1 = new AtomicReference<>();
         threadRef1.set(
-                createLeaderElectionThreadAndWaitForInterupt(rootPath, "member1", startSignal, keepBusySpin1, event -> {
+                createLeaderElectionThreadAndWaitForInterrupt(rootPath, "member1", startSignal, keepBusySpin1, event -> {
                     if (keepBusySpin1.get()) {
                         String leaderId = event.getLeader().getId();
                         receivedLeader1.set(leaderId);
@@ -181,7 +63,7 @@ public class TestZooKeeperLeaderElection {
         final AtomicReference<Thread> threadRef2 = new AtomicReference<>();
         final AtomicReference<String> receivedLeader2 = new AtomicReference<>();
         threadRef2.set(
-                createLeaderElectionThreadAndWaitForInterupt(rootPath, "member2", startSignal, keepBusySpin2, event -> {
+                createLeaderElectionThreadAndWaitForInterrupt(rootPath, "member2", startSignal, keepBusySpin2, event -> {
                     if (keepBusySpin2.get()) {
                         String leaderId = event.getLeader().getId();
                         receivedLeader2.set(leaderId);
@@ -193,7 +75,7 @@ public class TestZooKeeperLeaderElection {
         final AtomicReference<Thread> threadRef3 = new AtomicReference<>();
         final AtomicReference<String> receivedLeader3 = new AtomicReference<>();
         threadRef3.set(
-                createLeaderElectionThreadAndWaitForInterupt(rootPath, "member3", startSignal, keepBusySpin3, event -> {
+                createLeaderElectionThreadAndWaitForInterrupt(rootPath, "member3", startSignal, keepBusySpin3, event -> {
                     if (keepBusySpin3.get()) {
                         String leaderId = event.getLeader().getId();
                         receivedLeader3.set(leaderId);
@@ -249,4 +131,43 @@ public class TestZooKeeperLeaderElection {
 
         ThreadUtils.sleep(200);
     }
+
+    private Thread createLeaderElectionThreadAndWaitForInterrupt(@NonNull String rootPath, @NonNull String memberName,
+                                                                 @NonNull CountDownLatch startSignal, @NonNull AtomicBoolean keepBusySpin,
+                                                                 @NonNull LeadershipListener onLeadershipEventListener) {
+        final Thread thread = new Thread(() -> {
+            LeaderElection leaderElection = new ZooKeeperLeaderElection(zooKeeper, rootPath);
+            leaderElection.addLeadershipListener(onLeadershipEventListener);
+
+            try {
+                startSignal.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+            leaderElection.nominateCandidate(Member.newBuilder() //
+                    .id(memberName)//
+                    .build());
+
+            while (keepBusySpin.get()) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    // do nothing...
+                }
+            }
+            leaderElection.cancelCandidate();
+
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    // do nothing...
+                }
+            }
+        });
+        thread.start();
+        return thread;
+    }
+
 }
