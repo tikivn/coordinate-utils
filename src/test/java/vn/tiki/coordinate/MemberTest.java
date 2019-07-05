@@ -24,6 +24,7 @@ public class MemberTest {
 	}
 
 	@Test
+	@SuppressWarnings("unlikely-arg-type")
 	public void test_Equals() {
 		MemberImpl member2 = MemberImpl.builder().id("member1").data(BObject.ofEmpty()).build();
 		MemberImpl member3 = MemberImpl.builder().id("member3").data(BObject.ofEmpty()).build();
