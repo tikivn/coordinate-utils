@@ -14,37 +14,37 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ZooKeeperHelper {
 
-    private static final List<ZooKeeper> TRACKED_ZOOKEEPER_INSTANCES = new LinkedList<>();
+	private static final List<ZooKeeper> TRACKED_ZOOKEEPER_INSTANCES = new LinkedList<>();
 
-    static {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            for (ZooKeeper zooKeeper : TRACKED_ZOOKEEPER_INSTANCES) {
-                try {
-                    zooKeeper.close();
-                } catch (Exception e) {
-                    log.error("error while shutting down zookeeper instance", e);
-                }
-            }
-        }, "zookeeper-instances-shutdown"));
-    }
+	static {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			for (ZooKeeper zooKeeper : TRACKED_ZOOKEEPER_INSTANCES) {
+				try {
+					zooKeeper.close();
+				} catch (Exception e) {
+					log.error("error while shutting down zookeeper instance", e);
+				}
+			}
+		}, "zookeeper-instances-shutdown"));
+	}
 
-    public static ZooKeeper initZooKeeper(String connectString, int sessionTimeoutMillis, long connectTimeoutMillis) {
-        try {
-            final CountDownLatch connectedSignal = new CountDownLatch(1);
-            final ZooKeeper zooKeeper = new ZooKeeper(connectString, sessionTimeoutMillis, event -> {
-                if (KeeperState.SyncConnected.equals(event.getState())) {
-                    connectedSignal.countDown();
-                }
-            });
+	public static ZooKeeper initZooKeeper(String connectString, int sessionTimeoutMillis, long connectTimeoutMillis) {
+		try {
+			final CountDownLatch connectedSignal = new CountDownLatch(1);
+			final ZooKeeper zooKeeper = new ZooKeeper(connectString, sessionTimeoutMillis, event -> {
+				if (KeeperState.SyncConnected.equals(event.getState())) {
+					connectedSignal.countDown();
+				}
+			});
 
-            if (!connectedSignal.await(connectTimeoutMillis, TimeUnit.MILLISECONDS)) {
-                zooKeeper.close();
-                throw new TimeoutException("ZooKeeper connecting timeout after " + connectTimeoutMillis + "ms");
-            }
-            TRACKED_ZOOKEEPER_INSTANCES.add(zooKeeper);
-            return zooKeeper;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+			if (!connectedSignal.await(connectTimeoutMillis, TimeUnit.MILLISECONDS)) {
+				zooKeeper.close();
+				throw new TimeoutException("ZooKeeper connecting timeout after " + connectTimeoutMillis + "ms");
+			}
+			TRACKED_ZOOKEEPER_INSTANCES.add(zooKeeper);
+			return zooKeeper;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 }

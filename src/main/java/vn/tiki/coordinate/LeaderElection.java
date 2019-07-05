@@ -2,13 +2,13 @@ package vn.tiki.coordinate;
 
 public interface LeaderElection {
 
-    Member getLeader();
+	Member getLeader();
 
-    Member getCandidate();
+	Member getCandidate();
 
-    void nominateCandidate(Member member);
+	void nominateCandidate(Member member);
 
-    void cancelCandidate();
+	void cancelCandidate();
 
-    LeadershipListeningDisposable addLeadershipListener(LeadershipListener listener);
+	LeadershipListeningDisposable addLeadershipListener(LeadershipListener listener);
 }
